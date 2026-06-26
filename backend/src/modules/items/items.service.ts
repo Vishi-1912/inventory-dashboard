@@ -2,7 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { Item } from './entities/item.entity';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
-import { itemsSeed } from '../../common/constants';
+import { Category, itemsSeed } from '../../common/constants';
+import { GetItemsDto } from './dtos/get-items.dto';
 
 @Injectable()
 export class ItemsService {
@@ -11,8 +12,32 @@ export class ItemsService {
         private readonly itemRepository: Repository<Item>,
     ) { }
 
-    getItems() {
-        return 'Hello World Items';
+    async getItems(query: GetItemsDto) {
+        try {
+            const { page = 1, limit = 10, category } = query;
+
+            const [items, total] = await this.itemRepository.findAndCount({
+                where: category ? { category: category as Category } : {},
+                skip: (page - 1) * limit,
+                take: limit,
+                order: {
+                    updatedAt: 'DESC',
+                },
+            });
+
+            return {
+                success: true,
+                data: items,
+                pagination: {
+                    total,
+                    page,
+                    limit,
+                    totalPages: Math.ceil(total / limit),
+                },
+            };
+        } catch (error) {
+            throw new Error('Failed to get items');
+        }
     }
 
     async seedItems() {

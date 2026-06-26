@@ -1,17 +1,18 @@
-import { Controller, Get, Post } from '@nestjs/common';
+import { Controller, Get, Post, Query } from '@nestjs/common';
 import { ItemsService } from './items.service';
+import { GetItemsDto } from './dtos/get-items.dto';
 
 @Controller('items')
 export class ItemsController {
     constructor(private readonly itemsService: ItemsService) { }
 
     @Get()
-    getItems() {
-        return this.itemsService.getItems();
+    async getItems(@Query() query: GetItemsDto) {
+        return await this.itemsService.getItems(query);
     }
 
     @Post('seed')
-    seedItems() {
-        return this.itemsService.seedItems();
+    async seedItems() {
+        return await this.itemsService.seedItems();
     }
 }
