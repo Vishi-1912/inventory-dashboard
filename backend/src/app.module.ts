@@ -7,6 +7,7 @@ import { ItemsModule } from './modules/items/items.module';
 import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
 import { Item } from './modules/items/entities/item.entity';
 import { AuditLog } from './modules/audit-logs/entities/audit-logs.entity';
+import { CacheModule } from '@nestjs/cache-manager';
 
 @Module({
   imports: [
@@ -22,6 +23,10 @@ import { AuditLog } from './modules/audit-logs/entities/audit-logs.entity';
       database: process.env.DB_NAME,
       synchronize: true,
       entities: [Item, AuditLog],
+    }),
+    CacheModule.register({
+      isGlobal: true,
+      ttl: 30 * 1000,
     }),
     ItemsModule,
     AuditLogsModule,
