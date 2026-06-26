@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import axios from 'axios';
 import api from '@/services/api';
-import { ItemResponse } from '@/types/item';
+import { Item, ItemResponse, Pagination as PaginationMeta } from '@/types/item';
 
 import ItemsTable from '@/components/ItemsTable';
 import Pagination from '@/components/Pagination';
@@ -10,24 +11,37 @@ import CategoryFilter from '@/components/CategoryFilter';
 import SkeletonTable from '@/components/SkeletonTable';
 import ErrorState from '@/components/ErrorState';
 
+function getErrorMessage(error: unknown): string {
+  if (axios.isAxiosError(error)) {
+    if (!error.response) {
+      return 'Network error. Check your connection and try again.';
+    }
+    if (error.response.status === 404) {
+      return 'Items endpoint not found. Check API configuration.';
+    }
+    return `Server error (${error.response.status}). Please try again.`;
+  }
+  return 'Failed to fetch items. Please try again.';
+}
+
 export default function Home() {
-  const [items, setItems] = useState([]);
+  const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [page, setPage] = useState(1);
   const [category, setCategory] = useState('');
-  const [pagination, setPagination] = useState({
+  const [pagination, setPagination] = useState<PaginationMeta>({
     page: 1,
     limit: 10,
     total: 0,
     totalPages: 1,
   });
 
-  async function fetchItems() {
+  const fetchItems = useCallback(async () => {
     try {
       setLoading(true);
 
-      const res: any = await api.get<ItemResponse>('/items', {
+      const res = await api.get<ItemResponse>('/items', {
         params: {
           page,
           limit: 10,
@@ -38,18 +52,20 @@ export default function Home() {
       setItems(res.data.data);
       setPagination(res.data.pagination);
       setError('');
-    } catch {
-      setError('Failed to fetch items.');
+    } catch (err) {
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
-  }
+  }, [page, category]);
 
   useEffect(() => {
     fetchItems();
-  }, [page, category]);
+  }, [fetchItems]);
 
-  const lowStockCount = items.filter((item: { stockCount: number }) => item.stockCount < 10).length;
+  const lowStockCount = items.filter((item) => item.stockCount < 10).length;
+  const hasCachedData = error !== '' && items.length > 0;
+  const showSkeleton = loading && items.length === 0;
 
   return (
     <div className="min-h-full bg-background">
@@ -66,7 +82,7 @@ export default function Home() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           <StatCard
             label="Total Items"
-            value={loading ? '—' : pagination.total.toLocaleString()}
+            value={loading && items.length === 0 ? '—' : pagination.total.toLocaleString()}
             color="blue"
             icon={
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-5 w-5">
@@ -76,7 +92,7 @@ export default function Home() {
           />
           <StatCard
             label="Showing"
-            value={loading ? '—' : String(items.length)}
+            value={loading && items.length === 0 ? '—' : String(items.length)}
             color="blue"
             icon={
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-5 w-5">
@@ -86,7 +102,7 @@ export default function Home() {
           />
           <StatCard
             label="Low Stock"
-            value={loading ? '—' : String(lowStockCount)}
+            value={loading && items.length === 0 ? '—' : String(lowStockCount)}
             color="red"
             icon={
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-5 w-5">
@@ -100,6 +116,7 @@ export default function Home() {
           <div className="px-6 pt-5 pb-4">
             <CategoryFilter
               value={category}
+              disabled={loading}
               onChange={(value) => {
                 setCategory(value);
                 setPage(1);
@@ -108,21 +125,30 @@ export default function Home() {
           </div>
 
           <div className="px-6 pb-6">
-            {error && <ErrorState message={error} />}
+            {error && (
+              <ErrorState
+                message={error}
+                stale={hasCachedData}
+                onRetry={fetchItems}
+              />
+            )}
 
-            {loading ? (
+            {showSkeleton ? (
               <SkeletonTable />
             ) : (
-              <>
+              <div className={loading ? 'opacity-60 transition-opacity' : 'transition-opacity'}>
                 <ItemsTable items={items} />
+              </div>
+            )}
 
-                <Pagination
-                  page={pagination.page}
-                  totalPages={pagination.totalPages}
-                  onPrevious={() => setPage((p) => p - 1)}
-                  onNext={() => setPage((p) => p + 1)}
-                />
-              </>
+            {!showSkeleton && (
+              <Pagination
+                page={pagination.page}
+                totalPages={pagination.totalPages}
+                loading={loading}
+                onPrevious={() => setPage((p) => p - 1)}
+                onNext={() => setPage((p) => p + 1)}
+              />
             )}
           </div>
         </div>

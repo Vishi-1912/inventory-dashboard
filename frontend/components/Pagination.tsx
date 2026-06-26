@@ -1,6 +1,7 @@
 type Props = {
   page: number;
   totalPages: number;
+  loading?: boolean;
   onPrevious: () => void;
   onNext: () => void;
 };
@@ -8,19 +9,22 @@ type Props = {
 export default function Pagination({
   page,
   totalPages,
+  loading = false,
   onPrevious,
   onNext,
 }: Props) {
+  const displayTotalPages = totalPages === 0 ? 1 : totalPages;
+
   return (
     <div className="flex items-center justify-between mt-5 pt-4 border-t border-border">
       <p className="text-sm text-muted">
         Page <span className="font-medium text-foreground">{page}</span> of{' '}
-        <span className="font-medium text-foreground">{totalPages}</span>
+        <span className="font-medium text-foreground">{displayTotalPages}</span>
       </p>
 
       <div className="flex items-center gap-2">
         <button
-          disabled={page === 1}
+          disabled={loading || page === 1}
           onClick={onPrevious}
           className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface px-3.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted disabled:opacity-40 disabled:cursor-not-allowed"
         >
@@ -28,7 +32,7 @@ export default function Pagination({
         </button>
 
         <button
-          disabled={totalPages === 0 || page >= totalPages}
+          disabled={loading || totalPages === 0 || page >= totalPages}
           onClick={onNext}
           className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface px-3.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted disabled:opacity-40 disabled:cursor-not-allowed"
         >
